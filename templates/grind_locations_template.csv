@@ -1,0 +1,2 @@
+id,name,zone,subzone,mapID,coordinates,minLevel,maxLevel,idealMin,idealMax,faction,mobTypes,density,danger,travel,xp,gold,competition,loot,professions,route,notes
+tanaris-wastewander-40-45,Wastewander Bandit Camps,Tanaris,Waterspring Field,1446,"62, 37",40,45,42,44,Both,"Wastewander Bandit;Wastewander Thief;Wastewander Assassin",5,4,3,5,4,4,"Silk Cloth;Mageweave Cloth;Coins",First Aid,Clear one camp at a time and rotate north-south when respawns start overlapping.,High-value humanoid grinding. Be careful with stealth mobs and caster chains.
