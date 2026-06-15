@@ -1,14 +1,16 @@
 # GrindLlama
 
-GrindLlama is a World of Warcraft Classic addon that suggests open-world grinding locations from structured route data. It auto-ranks spots from the player's current level and faction, then shows the best matches in a movable in-game panel.
+GrindLlama is a World of Warcraft Classic addon that suggests open-world grinding locations from structured route data. It auto-ranks spots from the player's current level, faction, and preferred mob level, then shows the best matches in a small movable list.
 
 ## Current Features
 
 - Auto-detects player level and faction.
-- Ranks routes by level fit, faction, XP quality, density, travel time, danger, competition, and current zone.
-- Displays the top recommendation plus a ranked shortlist.
+- Ranks routes by desired mob level, faction, XP quality, density, travel time, danger, competition, spreadsheet priority, and current zone.
+- Shows one minimal list window with only mob name, zone, mob level range, and score visible for each row.
+- Shows farm details in a tooltip when hovering over a row.
+- Lets the user adjust the target mob level relative to their own level.
 - Includes a minimap toggle button and slash commands.
-- Stores window position, lock state, visibility, and level search range in saved variables.
+- Stores window position, lock state, visibility, target mob offset, and mob-level tolerance in saved variables.
 - Ships with generated Classic route data from `vanilla_wow_classic_grinding_locations_expanded_addon_db.xlsx`.
 
 ## Installation
@@ -26,11 +28,13 @@ If your client marks the addon as out of date, enable "Load out of date AddOns" 
 - `/gll hide` closes the panel.
 - `/gll lock` locks or unlocks dragging.
 - `/gll reset` resets the panel position.
-- `/gll window 6` changes the suggestion range to plus or minus 6 levels.
+- `/gll mob +1` targets mobs one level above the player.
+- `/gll mob -2` targets mobs two levels below the player.
+- `/gll window 2` changes the mob-level tolerance to plus or minus 2 levels.
 
 ## Spreadsheet Data Workflow
 
-WoW addons cannot read `.xlsx` or Google Sheets directly at runtime. The spreadsheet needs to be exported and converted into Lua data in `Data/GrindLocations.lua`.
+WoW addons cannot read `.xlsx` or Google Sheets directly at runtime. The spreadsheet needs to be exported and converted into Lua data in `Data/GrindLocations.lua` and the numbered `Data/GrindLocations_*.lua` shards.
 
 Current workflow:
 
@@ -42,12 +46,13 @@ Current workflow:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Convert-GrindLocationsFromXlsx.ps1 -WorkbookPath .\vanilla_wow_classic_grinding_locations_expanded_addon_db.xlsx -SheetName Addon_DB -OutputPath .\Data\GrindLocations.lua
 ```
 
-The generated `Data/GrindLocations.lua` currently contains 178 routes from the workbook. It embeds the compact fields the addon needs at runtime; the workbook remains the full source for audit/source notes and richer spreadsheet-only columns.
+The generated data currently contains 178 routes from the workbook. It embeds the list fields and hover-detail fields the addon needs at runtime; the workbook remains the full source for audit/source notes and spreadsheet-only columns.
 
 ## Addon Folder Layout
 
 - `GrindLlama.toc` loads the addon files.
-- `Data/GrindLocations.lua` contains route data.
+- `Data/GrindLocations.lua` contains the generated route loader.
+- `Data/GrindLocations_*.lua` contains generated route data shards.
 - `Core.lua` handles player detection, scoring, slash commands, and saved variables.
 - `UI.lua` builds the in-game panel and minimap toggle.
 - `tools/Convert-GrindLocationsFromXlsx.ps1` converts the workbook `Addon_DB` sheet into Lua data.

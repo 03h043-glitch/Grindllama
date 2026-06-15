@@ -1,0 +1,3 @@
+-- Auto-generated route data shard 10 from vanilla_wow_classic_grinding_locations_expanded_addon_db.xlsx sheet 'Addon_DB'.
+-- Update the workbook, then rerun tools\Convert-GrindLocationsFromXlsx.ps1.
+-- Reserved for future route rows.

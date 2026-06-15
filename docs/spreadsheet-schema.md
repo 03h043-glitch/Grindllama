@@ -1,8 +1,8 @@
 # GrindLlama Spreadsheet Schema
 
-Use one row per grinding route. Keep column names stable so `tools/Convert-GrindLocationsFromXlsx.ps1` can convert the workbook's `Addon_DB` sheet into `Data/GrindLocations.lua`.
+Use one row per grinding route. Keep column names stable so `tools/Convert-GrindLocationsFromXlsx.ps1` can convert the workbook's `Addon_DB` sheet into `Data/GrindLocations.lua` and numbered `Data/GrindLocations_*.lua` shards.
 
-The workbook is the full source of truth. The generated Lua file intentionally embeds a compact runtime subset: route ID, level range, faction fit, zone, area, mob group, mob level range, derived ratings, and priority score. Source/audit columns and richer notes stay in the workbook and can still influence derived ratings during conversion.
+The workbook is the full source of truth. The generated Lua files embed the compact list fields plus the hover-detail fields the addon needs at runtime: route ID, level range, faction fit, zone, area, coordinates, mob group, mob level range, spawn type, farm style, drops, profession synergy, risks, notes, tags, derived ratings, and priority score. Source/audit columns stay in the workbook and can still influence derived ratings during conversion.
 
 ## Required Columns
 
@@ -36,8 +36,8 @@ The workbook is the full source of truth. The generated Lua file intentionally e
 
 ## Scoring Notes
 
-The addon gives the most weight to level fit, then XP, density, danger, travel, gold, competition, spreadsheet priority, faction fit, and current-zone match. Keep rating scales consistent across rows so the ranking feels predictable.
+The addon gives the most weight to the user's target mob level, then route level fit, XP, density, danger, travel, gold, competition, spreadsheet priority, faction fit, and current-zone match. Keep rating scales consistent across rows so the ranking feels predictable.
 
 ## Runtime Constraint
 
-The game client loads Lua files listed in `GrindLlama.toc`. It will not load a spreadsheet file directly, so the final import step must produce valid Lua route data.
+The game client loads Lua files listed in `GrindLlama.toc`. It will not load a spreadsheet file directly, so the final import step must produce valid Lua loader and shard files.

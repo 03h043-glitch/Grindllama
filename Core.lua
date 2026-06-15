@@ -8,6 +8,8 @@ GrindLlama.version = "0.1.0"
 
 local DEFAULTS = {
     levelWindow = 6,
+    mobLevelOffset = 0,
+    mobLevelWindow = 2,
     ui = {
         point = "CENTER",
         relativePoint = "CENTER",
@@ -111,6 +113,60 @@ function GrindLlama:GetLevelDistance(location, level)
     return 0
 end
 
+function GrindLlama:GetMobLevelRange(location)
+    if location.mobMinLevel and location.mobMaxLevel then
+        return location.mobMinLevel, location.mobMaxLevel
+    end
+
+    local text = location.mobLevelRange or ""
+    local minLevel, maxLevel = string.match(text, "(%d+)%s*%-%s*(%d+)")
+    if not minLevel then
+        minLevel = string.match(text, "(%d+)")
+        maxLevel = minLevel
+    end
+
+    minLevel = tonumber(minLevel) or location.minLevel or 1
+    maxLevel = tonumber(maxLevel) or minLevel
+
+    if minLevel > maxLevel then
+        minLevel, maxLevel = maxLevel, minLevel
+    end
+
+    location.mobMinLevel = minLevel
+    location.mobMaxLevel = maxLevel
+    return minLevel, maxLevel
+end
+
+function GrindLlama:GetTargetMobLevel(level)
+    level = level or self.playerLevel or self:GetPlayerLevel()
+    local offset = (self.db and self.db.mobLevelOffset) or DEFAULTS.mobLevelOffset
+    return Clamp(level + offset, 1, 63)
+end
+
+function GrindLlama:GetMobLevelDistance(location, targetMobLevel)
+    local minLevel, maxLevel = self:GetMobLevelRange(location)
+
+    if targetMobLevel < minLevel then
+        return minLevel - targetMobLevel
+    end
+    if targetMobLevel > maxLevel then
+        return targetMobLevel - maxLevel
+    end
+    return 0
+end
+
+function GrindLlama:GetMobLevelStatus(location, targetMobLevel)
+    local minLevel, maxLevel = self:GetMobLevelRange(location)
+
+    if targetMobLevel >= minLevel and targetMobLevel <= maxLevel then
+        return "Target"
+    end
+    if targetMobLevel < minLevel then
+        return "Low"
+    end
+    return "High"
+end
+
 function GrindLlama:GetLevelStatus(location, level)
     local minLevel = location.minLevel or 1
     local maxLevel = location.maxLevel or minLevel
@@ -139,14 +195,16 @@ function GrindLlama:GetLevelStatus(location, level)
 end
 
 function GrindLlama:ScoreLocation(location, level, faction)
-    local distance = self:GetLevelDistance(location, level)
-    local status = self:GetLevelStatus(location, level)
-    local score = 100 - (distance * 18)
+    local levelDistance = self:GetLevelDistance(location, level)
+    local targetMobLevel = self:GetTargetMobLevel(level)
+    local mobDistance = self:GetMobLevelDistance(location, targetMobLevel)
+    local status = self:GetMobLevelStatus(location, targetMobLevel)
+    local score = 100 - (mobDistance * 24) - (levelDistance * 8)
 
-    if status == "Ideal" then
-        score = score + 18
-    elseif status == "Viable" then
-        score = score + 10
+    if mobDistance == 0 then
+        score = score + 24
+    elseif mobDistance <= ((self.db and self.db.mobLevelWindow) or DEFAULTS.mobLevelWindow) then
+        score = score + 8
     end
 
     score = score + ((location.xp or 3) * 5)
@@ -170,7 +228,7 @@ function GrindLlama:ScoreLocation(location, level, faction)
         end
     end
 
-    return score, status, distance
+    return score, status, levelDistance, mobDistance, targetMobLevel
 end
 
 local function SortByScore(left, right)
@@ -186,21 +244,23 @@ function GrindLlama:GetSuggestions(level, faction, limit)
     limit = limit or 5
 
     local locations = _G.GrindLlama_Locations or {}
-    local window = (self.db and self.db.levelWindow) or DEFAULTS.levelWindow
+    local window = (self.db and self.db.mobLevelWindow) or DEFAULTS.mobLevelWindow
     local near = {}
     local fallback = {}
 
     for _, location in ipairs(locations) do
         if self:IsFactionMatch(location, faction) then
-            local score, status, distance = self:ScoreLocation(location, level, faction)
+            local score, status, distance, mobDistance, targetMobLevel = self:ScoreLocation(location, level, faction)
             local result = {
                 location = location,
                 score = score,
                 status = status,
-                distance = distance
+                distance = distance,
+                mobDistance = mobDistance,
+                targetMobLevel = targetMobLevel
             }
 
-            if distance <= window then
+            if mobDistance <= window then
                 table.insert(near, result)
             else
                 table.insert(fallback, result)
@@ -227,14 +287,28 @@ function GrindLlama:GetSuggestions(level, faction, limit)
 end
 
 function GrindLlama:SetLevelWindow(window)
-    window = tonumber(window) or DEFAULTS.levelWindow
-    self.db.levelWindow = Clamp(math.floor(window), 0, 20)
+    self:SetMobLevelWindow(window)
+end
+
+function GrindLlama:SetMobLevelWindow(window)
+    window = tonumber(window) or DEFAULTS.mobLevelWindow
+    self.db.mobLevelWindow = Clamp(math.floor(window), 0, 10)
     self:Refresh()
+end
+
+function GrindLlama:SetMobLevelOffset(offset)
+    offset = tonumber(offset) or DEFAULTS.mobLevelOffset
+    self.db.mobLevelOffset = Clamp(math.floor(offset), -10, 10)
+    self:Refresh()
+end
+
+function GrindLlama:AdjustMobLevelOffset(delta)
+    self:SetMobLevelOffset(((self.db and self.db.mobLevelOffset) or DEFAULTS.mobLevelOffset) + (tonumber(delta) or 0))
 end
 
 function GrindLlama:Refresh()
     self:RefreshPlayer()
-    self:GetSuggestions(self.playerLevel, self.playerFaction, 5)
+    self:GetSuggestions(self.playerLevel, self.playerFaction, 8)
 
     if self.UI and self.UI.Refresh then
         self.UI:Refresh()
@@ -283,11 +357,18 @@ function GrindLlama:HandleSlash(message)
     local window = string.match(command, "^window%s+(%d+)$")
     if window then
         self:SetLevelWindow(tonumber(window))
-        self:Print("Level search window set to +/-" .. self.db.levelWindow .. ".")
+        self:Print("Mob-level tolerance set to +/-" .. self.db.mobLevelWindow .. ".")
         return
     end
 
-    self:Print("Commands: /gll, /gll show, /gll hide, /gll lock, /gll reset, /gll window 6")
+    local mobOffset = string.match(command, "^mob%s+([%+%-]?%d+)$") or string.match(command, "^mobs%s+([%+%-]?%d+)$")
+    if mobOffset then
+        self:SetMobLevelOffset(tonumber(mobOffset))
+        self:Print("Target mob level set to player " .. string.format("%+d", self.db.mobLevelOffset) .. ".")
+        return
+    end
+
+    self:Print("Commands: /gll, /gll show, /gll hide, /gll lock, /gll reset, /gll mob +1, /gll window 2")
 end
 
 function GrindLlama:OnAddonLoaded()

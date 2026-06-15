@@ -6,5 +6,15 @@
 ## SavedVariables: GrindLlamaDB
 
 Data\GrindLocations.lua
+Data\GrindLocations_01.lua
+Data\GrindLocations_02.lua
+Data\GrindLocations_03.lua
+Data\GrindLocations_04.lua
+Data\GrindLocations_05.lua
+Data\GrindLocations_06.lua
+Data\GrindLocations_07.lua
+Data\GrindLocations_08.lua
+Data\GrindLocations_09.lua
+Data\GrindLocations_10.lua
 Core.lua
 UI.lua

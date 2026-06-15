@@ -9,14 +9,14 @@ GrindLlama.UI = UI
 local BACKDROP_TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
 local PANEL_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
     tile = false,
     tileSize = 0,
-    edgeSize = 14,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    edgeSize = 1,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 }
 }
 
-local CARD_BACKDROP = {
+local ROW_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Buttons\\WHITE8X8",
     tile = false,
@@ -29,54 +29,25 @@ local function NewPanel(name, parent)
     return CreateFrame("Frame", name, parent, BACKDROP_TEMPLATE)
 end
 
-local function ApplyPanelBackdrop(frame, r, g, b, a)
+local function ApplyPanelBackdrop(frame)
     if frame.SetBackdrop then
         frame:SetBackdrop(PANEL_BACKDROP)
-        frame:SetBackdropColor(r, g, b, a)
-        frame:SetBackdropBorderColor(0.92, 0.72, 0.38, 0.9)
+        frame:SetBackdropColor(0.035, 0.035, 0.032, 0.94)
+        frame:SetBackdropBorderColor(0.24, 0.22, 0.18, 0.95)
     end
 end
 
-local function ApplyCardBackdrop(frame, selected)
-    if frame.SetBackdrop then
-        frame:SetBackdrop(CARD_BACKDROP)
-        if selected then
-            frame:SetBackdropColor(0.18, 0.13, 0.07, 0.94)
-            frame:SetBackdropBorderColor(0.95, 0.78, 0.38, 0.9)
+local function ApplyRowBackdrop(row, hovered)
+    if row.SetBackdrop then
+        row:SetBackdrop(ROW_BACKDROP)
+        if hovered then
+            row:SetBackdropColor(0.12, 0.105, 0.08, 0.98)
+            row:SetBackdropBorderColor(0.82, 0.66, 0.34, 0.95)
         else
-            frame:SetBackdropColor(0.07, 0.06, 0.05, 0.88)
-            frame:SetBackdropBorderColor(0.34, 0.26, 0.16, 0.95)
+            row:SetBackdropColor(0.055, 0.052, 0.047, 0.82)
+            row:SetBackdropBorderColor(0.16, 0.15, 0.13, 0.9)
         end
     end
-end
-
-local function SetTextColorByQuality(fontString, value)
-    value = value or 3
-    if value >= 5 then
-        fontString:SetTextColor(0.38, 0.95, 0.48)
-    elseif value >= 4 then
-        fontString:SetTextColor(0.62, 0.86, 1.0)
-    elseif value >= 3 then
-        fontString:SetTextColor(1.0, 0.86, 0.45)
-    else
-        fontString:SetTextColor(0.78, 0.72, 0.66)
-    end
-end
-
-local function StatusColor(result)
-    if not result then
-        return 0.6, 0.6, 0.6
-    end
-    if result.status == "Ideal" then
-        return 0.34, 0.9, 0.48
-    end
-    if result.status == "Viable" then
-        return 0.95, 0.78, 0.32
-    end
-    if result.location and (GrindLlama.playerLevel or 1) < (result.location.minLevel or 1) then
-        return 0.65, 0.78, 1.0
-    end
-    return 0.95, 0.48, 0.35
 end
 
 local function Join(values, fallback)
@@ -86,14 +57,62 @@ local function Join(values, fallback)
     return table.concat(values, ", ")
 end
 
-local function AddText(parts, label, value)
+local function AddLine(parts, label, value)
     if value and value ~= "" then
         table.insert(parts, label .. ": " .. value)
     end
 end
 
-local function LevelText(location)
-    return "Level " .. tostring(location.minLevel or "?") .. "-" .. tostring(location.maxLevel or "?")
+local function AddTooltipLine(value, r, g, b)
+    if GameTooltip and value and value ~= "" then
+        GameTooltip:AddLine(value, r or 0.86, g or 0.82, b or 0.74, true)
+    end
+end
+
+local function AddTooltipPair(label, value)
+    if GameTooltip and value and value ~= "" then
+        GameTooltip:AddDoubleLine(label, tostring(value), 0.72, 0.70, 0.64, 1.0, 0.92, 0.62)
+    end
+end
+
+local function MobName(location)
+    if location.mobTypes and location.mobTypes[1] and location.mobTypes[1] ~= "" then
+        return location.mobTypes[1]
+    end
+    return location.name or "Unknown mob"
+end
+
+local function MobLevelText(location)
+    if location.mobLevelRange and location.mobLevelRange ~= "" then
+        return location.mobLevelRange
+    end
+    return tostring(location.minLevel or "?") .. "-" .. tostring(location.maxLevel or "?")
+end
+
+local function OffsetText(offset)
+    offset = offset or 0
+    if offset > 0 then
+        return "+" .. tostring(offset)
+    end
+    return tostring(offset)
+end
+
+local function ScoreText(result)
+    return tostring(math.floor((result.score or 0) + 0.5))
+end
+
+local function ScoreColor(result)
+    local score = result and result.score or 0
+    if score >= 130 then
+        return 0.38, 0.92, 0.52
+    end
+    if score >= 105 then
+        return 0.95, 0.80, 0.38
+    end
+    if score >= 80 then
+        return 0.82, 0.76, 0.66
+    end
+    return 0.92, 0.48, 0.38
 end
 
 local function RouteText(location)
@@ -113,17 +132,10 @@ local function RouteText(location)
     end
 
     if #parts == 0 then
-        return "Route details TBD."
+        return ""
     end
 
     return table.concat(parts, " ")
-end
-
-local function StatText(label, value)
-    value = value or 0
-    local filled = string.rep("*", value)
-    local empty = string.rep("-", math.max(5 - value, 0))
-    return label .. " " .. filled .. empty
 end
 
 function UI:Initialize()
@@ -131,7 +143,7 @@ function UI:Initialize()
         return
     end
 
-    self.cards = {}
+    self.rows = {}
     self:CreateMainFrame()
     self:CreateMinimapButton()
     self:RestorePosition()
@@ -146,13 +158,13 @@ end
 
 function UI:CreateMainFrame()
     local frame = NewPanel("GrindLlamaFrame", UIParent)
-    frame:SetSize(460, 600)
+    frame:SetSize(382, 306)
     frame:SetFrameStrata("DIALOG")
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
-    ApplyPanelBackdrop(frame, 0.045, 0.037, 0.028, 0.97)
+    ApplyPanelBackdrop(frame)
 
     frame:SetScript("OnDragStart", function(panel)
         if not GrindLlama.db.ui.locked then
@@ -165,177 +177,159 @@ function UI:CreateMainFrame()
         UI:SavePosition()
     end)
 
-    local header = frame:CreateTexture(nil, "ARTWORK")
-    header:SetColorTexture(0.22, 0.12, 0.04, 0.92)
-    header:SetPoint("TOPLEFT", 4, -4)
-    header:SetPoint("TOPRIGHT", -4, -4)
-    header:SetHeight(70)
-
-    local accent = frame:CreateTexture(nil, "OVERLAY")
-    accent:SetColorTexture(0.95, 0.64, 0.20, 0.95)
-    accent:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, 0)
-    accent:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, 0)
-    accent:SetHeight(2)
-
-    local icon = frame:CreateTexture(nil, "OVERLAY")
-    icon:SetTexture("Interface\\Icons\\Ability_Hunter_AspectOfTheCheetah")
-    icon:SetSize(42, 42)
-    icon:SetPoint("TOPLEFT", 18, -16)
-
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -1)
+    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", 12, -10)
     title:SetText("GrindLlama")
-    title:SetTextColor(1.0, 0.86, 0.42)
+    title:SetTextColor(1.0, 0.86, 0.48)
 
-    local subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -5)
-    subtitle:SetText("Classic grinding routes by level and faction")
-    subtitle:SetTextColor(0.86, 0.78, 0.66)
+    self.context = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self.context:SetPoint("LEFT", title, "RIGHT", 10, 0)
+    self.context:SetPoint("RIGHT", frame, "RIGHT", -76, 0)
+    self.context:SetJustifyH("LEFT")
+    self.context:SetTextColor(0.74, 0.72, 0.66)
 
     local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    closeButton:SetPoint("TOPRIGHT", -8, -10)
+    closeButton:SetSize(24, 24)
+    closeButton:SetPoint("TOPRIGHT", -6, -6)
     closeButton:SetScript("OnClick", function()
         UI:Hide()
     end)
 
-    self.context = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    self.context:SetPoint("TOPLEFT", 18, -84)
-    self.context:SetPoint("RIGHT", frame, "RIGHT", -18, 0)
-    self.context:SetJustifyH("LEFT")
-    self.context:SetTextColor(0.9, 0.84, 0.74)
-
     self.lockButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    self.lockButton:SetSize(66, 22)
-    self.lockButton:SetPoint("TOPRIGHT", -18, -80)
+    self.lockButton:SetSize(26, 20)
+    self.lockButton:SetPoint("RIGHT", closeButton, "LEFT", -4, 0)
     self.lockButton:SetScript("OnClick", function()
         UI:ToggleLock()
     end)
+    self.lockButton:SetScript("OnEnter", function(owner)
+        if GameTooltip then
+            GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+            GameTooltip:AddLine("Drag Lock")
+            GameTooltip:AddLine("Locks or unlocks the GrindLlama window.", 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+    end)
+    self.lockButton:SetScript("OnLeave", function()
+        if GameTooltip then
+            GameTooltip:Hide()
+        end
+    end)
 
-    local minusButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    minusButton:SetSize(24, 22)
-    minusButton:SetPoint("TOPRIGHT", self.lockButton, "BOTTOMRIGHT", -138, -8)
+    local controls = NewPanel(nil, frame)
+    controls:SetPoint("TOPLEFT", 8, -36)
+    controls:SetPoint("TOPRIGHT", -8, -36)
+    controls:SetHeight(32)
+    if controls.SetBackdrop then
+        controls:SetBackdrop(ROW_BACKDROP)
+        controls:SetBackdropColor(0.045, 0.044, 0.04, 0.88)
+        controls:SetBackdropBorderColor(0.12, 0.11, 0.10, 0.9)
+    end
+
+    local minusButton = CreateFrame("Button", nil, controls, "UIPanelButtonTemplate")
+    minusButton:SetSize(24, 20)
+    minusButton:SetPoint("LEFT", 8, 0)
     minusButton:SetText("-")
     minusButton:SetScript("OnClick", function()
-        GrindLlama:SetLevelWindow((GrindLlama.db.levelWindow or 6) - 1)
+        GrindLlama:AdjustMobLevelOffset(-1)
     end)
 
-    self.windowText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.windowText:SetSize(108, 22)
-    self.windowText:SetPoint("LEFT", minusButton, "RIGHT", 7, 0)
-    self.windowText:SetJustifyH("CENTER")
-    self.windowText:SetTextColor(0.82, 0.76, 0.66)
+    self.targetText = controls:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self.targetText:SetSize(116, 20)
+    self.targetText:SetPoint("LEFT", minusButton, "RIGHT", 6, 0)
+    self.targetText:SetJustifyH("CENTER")
+    self.targetText:SetTextColor(0.88, 0.83, 0.72)
 
-    local plusButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    plusButton:SetSize(24, 22)
-    plusButton:SetPoint("LEFT", self.windowText, "RIGHT", 7, 0)
+    local plusButton = CreateFrame("Button", nil, controls, "UIPanelButtonTemplate")
+    plusButton:SetSize(24, 20)
+    plusButton:SetPoint("LEFT", self.targetText, "RIGHT", 6, 0)
     plusButton:SetText("+")
     plusButton:SetScript("OnClick", function()
-        GrindLlama:SetLevelWindow((GrindLlama.db.levelWindow or 6) + 1)
+        GrindLlama:AdjustMobLevelOffset(1)
     end)
 
-    local refreshButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    refreshButton:SetSize(72, 22)
-    refreshButton:SetPoint("RIGHT", self.lockButton, "LEFT", -8, 0)
+    local refreshButton = CreateFrame("Button", nil, controls, "UIPanelButtonTemplate")
+    refreshButton:SetSize(62, 20)
+    refreshButton:SetPoint("RIGHT", -8, 0)
     refreshButton:SetText("Refresh")
     refreshButton:SetScript("OnClick", function()
         GrindLlama:Refresh()
     end)
 
-    self.detail = NewPanel(nil, frame)
-    self.detail:SetPoint("TOPLEFT", 18, -126)
-    self.detail:SetPoint("TOPRIGHT", -18, -126)
-    self.detail:SetHeight(142)
-    ApplyPanelBackdrop(self.detail, 0.08, 0.065, 0.045, 0.94)
+    self.rangeText = controls:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self.rangeText:SetPoint("RIGHT", refreshButton, "LEFT", -10, 0)
+    self.rangeText:SetTextColor(0.62, 0.60, 0.54)
 
-    self.detailBar = self.detail:CreateTexture(nil, "OVERLAY")
-    self.detailBar:SetPoint("TOPLEFT", 0, 0)
-    self.detailBar:SetPoint("BOTTOMLEFT", 0, 0)
-    self.detailBar:SetWidth(5)
-    self.detailBar:SetColorTexture(0.9, 0.74, 0.32, 1)
+    local header = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    header:SetPoint("TOPLEFT", 13, -79)
+    header:SetText("Mob")
 
-    self.detailLabel = self.detail:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    self.detailLabel:SetPoint("TOPLEFT", 16, -12)
-    self.detailLabel:SetText("RECOMMENDED NOW")
-    self.detailLabel:SetTextColor(0.95, 0.72, 0.34)
+    local zoneHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    zoneHeader:SetPoint("TOPLEFT", 136, -79)
+    zoneHeader:SetText("Zone")
 
-    self.detailTitle = self.detail:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    self.detailTitle:SetPoint("TOPLEFT", self.detailLabel, "BOTTOMLEFT", 0, -6)
-    self.detailTitle:SetPoint("RIGHT", self.detail, "RIGHT", -18, 0)
-    self.detailTitle:SetJustifyH("LEFT")
+    local levelHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    levelHeader:SetPoint("TOPLEFT", 250, -79)
+    levelHeader:SetText("Lvl")
 
-    self.detailMeta = self.detail:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.detailMeta:SetPoint("TOPLEFT", self.detailTitle, "BOTTOMLEFT", 0, -6)
-    self.detailMeta:SetPoint("RIGHT", self.detail, "RIGHT", -18, 0)
-    self.detailMeta:SetJustifyH("LEFT")
-    self.detailMeta:SetTextColor(0.86, 0.79, 0.68)
+    local scoreHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    scoreHeader:SetPoint("TOPRIGHT", -14, -79)
+    scoreHeader:SetText("Score")
 
-    self.detailStats = self.detail:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.detailStats:SetPoint("TOPLEFT", self.detailMeta, "BOTTOMLEFT", 0, -6)
-    self.detailStats:SetPoint("RIGHT", self.detail, "RIGHT", -18, 0)
-    self.detailStats:SetJustifyH("LEFT")
-
-    self.detailNotes = self.detail:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.detailNotes:SetPoint("TOPLEFT", self.detailStats, "BOTTOMLEFT", 0, -8)
-    self.detailNotes:SetPoint("RIGHT", self.detail, "RIGHT", -18, 0)
-    self.detailNotes:SetJustifyH("LEFT")
-    self.detailNotes:SetTextColor(0.78, 0.73, 0.66)
-
-    local listLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    listLabel:SetPoint("TOPLEFT", 18, -282)
-    listLabel:SetText("BEST MATCHES")
-    listLabel:SetTextColor(0.95, 0.72, 0.34)
-
-    for index = 1, 5 do
-        self.cards[index] = self:CreateCard(index)
+    for index = 1, 8 do
+        self.rows[index] = self:CreateRow(index)
     end
 
     self.frame = frame
     self:UpdateLockText()
 end
 
-function UI:CreateCard(index)
-    local card = CreateFrame("Button", nil, self.frame, BACKDROP_TEMPLATE)
-    card:SetSize(424, 52)
-    card:SetPoint("TOPLEFT", 18, -304 - ((index - 1) * 58))
-    card:RegisterForClicks("LeftButtonUp")
-    ApplyCardBackdrop(card, false)
+function UI:CreateRow(index)
+    local row = CreateFrame("Button", nil, self.frame, BACKDROP_TEMPLATE)
+    row:SetSize(358, 24)
+    row:SetPoint("TOPLEFT", 12, -96 - ((index - 1) * 25))
+    row:RegisterForClicks("LeftButtonUp")
+    ApplyRowBackdrop(row, false)
 
-    card.bar = card:CreateTexture(nil, "OVERLAY")
-    card.bar:SetPoint("TOPLEFT", 0, 0)
-    card.bar:SetPoint("BOTTOMLEFT", 0, 0)
-    card.bar:SetWidth(4)
-    card.bar:SetColorTexture(0.7, 0.7, 0.7, 1)
+    row.mob = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.mob:SetPoint("LEFT", 8, 0)
+    row.mob:SetSize(116, 16)
+    row.mob:SetJustifyH("LEFT")
+    row.mob:SetTextColor(0.92, 0.88, 0.78)
 
-    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.title:SetPoint("TOPLEFT", 14, -8)
-    card.title:SetPoint("RIGHT", card, "RIGHT", -12, 0)
-    card.title:SetJustifyH("LEFT")
+    row.zone = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.zone:SetPoint("LEFT", row.mob, "RIGHT", 8, 0)
+    row.zone:SetSize(108, 16)
+    row.zone:SetJustifyH("LEFT")
+    row.zone:SetTextColor(0.72, 0.76, 0.80)
 
-    card.meta = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.meta:SetPoint("TOPLEFT", card.title, "BOTTOMLEFT", 0, -4)
-    card.meta:SetPoint("RIGHT", card, "RIGHT", -12, 0)
-    card.meta:SetJustifyH("LEFT")
-    card.meta:SetTextColor(0.82, 0.77, 0.68)
+    row.levels = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.levels:SetPoint("LEFT", row.zone, "RIGHT", 8, 0)
+    row.levels:SetSize(48, 16)
+    row.levels:SetJustifyH("LEFT")
+    row.levels:SetTextColor(0.82, 0.78, 0.68)
 
-    card.score = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.score:SetPoint("TOPRIGHT", -12, -8)
-    card.score:SetJustifyH("RIGHT")
+    row.score = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.score:SetPoint("RIGHT", -8, 0)
+    row.score:SetSize(38, 16)
+    row.score:SetJustifyH("RIGHT")
 
-    card:SetScript("OnClick", function(button)
-        UI:SelectResult(button.result)
+    row:SetScript("OnEnter", function(button)
+        ApplyRowBackdrop(button, true)
+        UI:ShowTooltip(button, button.result)
     end)
 
-    card:SetScript("OnEnter", function(button)
-        if button.result ~= UI.selectedResult then
-            ApplyCardBackdrop(button, true)
+    row:SetScript("OnLeave", function(button)
+        ApplyRowBackdrop(button, false)
+        if GameTooltip then
+            GameTooltip:Hide()
         end
     end)
 
-    card:SetScript("OnLeave", function(button)
-        ApplyCardBackdrop(button, button.result == UI.selectedResult)
+    row:SetScript("OnClick", function(button)
+        UI:ShowTooltip(button, button.result)
     end)
 
-    return card
+    return row
 end
 
 function UI:CreateMinimapButton()
@@ -363,7 +357,7 @@ function UI:CreateMinimapButton()
         if GameTooltip then
             GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
             GameTooltip:AddLine("GrindLlama")
-            GameTooltip:AddLine("Click to toggle grinding suggestions.", 1, 1, 1)
+            GameTooltip:AddLine("Click to toggle the grind list.", 1, 1, 1, true)
             GameTooltip:Show()
         end
     end)
@@ -384,123 +378,86 @@ function UI:Refresh()
 
     local level = GrindLlama.playerLevel or GrindLlama:GetPlayerLevel()
     local faction = GrindLlama.playerFaction or GrindLlama:GetPlayerFaction()
-    local suggestions = GrindLlama:GetSuggestions(level, faction, 5)
+    local suggestions = GrindLlama:GetSuggestions(level, faction, 8)
     local count = #(_G.GrindLlama_Locations or {})
+    local offset = GrindLlama.db.mobLevelOffset or 0
+    local targetMobLevel = GrindLlama:GetTargetMobLevel(level)
+    local window = GrindLlama.db.mobLevelWindow or 2
 
-    self.context:SetText("Level " .. level .. " " .. faction .. " - " .. count .. " routes loaded")
-    self.windowText:SetText("Range +/-" .. tostring(GrindLlama.db.levelWindow or 6))
+    self.context:SetText("Level " .. level .. " " .. faction .. " / " .. count .. " routes")
+    self.targetText:SetText("Mob " .. OffsetText(offset) .. " -> " .. targetMobLevel)
+    self.rangeText:SetText("range " .. window)
     self:UpdateLockText()
 
-    for index, card in ipairs(self.cards) do
-        self:RefreshCard(card, suggestions[index])
+    for index, row in ipairs(self.rows) do
+        self:RefreshRow(row, suggestions[index])
     end
-
-    if suggestions[1] and (not self.selectedResult or not self.selectedResult.location) then
-        self.selectedResult = suggestions[1]
-    end
-
-    if self.selectedResult then
-        local stillVisible = false
-        for _, result in ipairs(suggestions) do
-            if result.location.id == self.selectedResult.location.id then
-                self.selectedResult = result
-                stillVisible = true
-                break
-            end
-        end
-        if not stillVisible then
-            self.selectedResult = suggestions[1]
-        end
-    else
-        self.selectedResult = suggestions[1]
-    end
-
-    self:RefreshSelection()
-    self:ShowDetail(self.selectedResult)
 end
 
-function UI:RefreshCard(card, result)
-    card.result = result
+function UI:RefreshRow(row, result)
+    row.result = result
 
     if not result then
-        card:Hide()
+        row:Hide()
         return
     end
 
     local location = result.location
-    local r, g, b = StatusColor(result)
+    local r, g, b = ScoreColor(result)
 
-    card:Show()
-    card.bar:SetColorTexture(r, g, b, 1)
-    card.title:SetText(location.name)
-    if location.priorityScore then
-        card.score:SetText(result.status .. " " .. location.priorityScore)
-    else
-        card.score:SetText(result.status)
-    end
-    card.score:SetTextColor(r, g, b)
-    local cardMeta = LevelText(location) .. " - " .. location.zone
-    if location.spawnType then
-        cardMeta = cardMeta .. " - " .. location.spawnType
-    elseif location.coordinates then
-        cardMeta = cardMeta .. " - " .. location.coordinates
-    end
-    card.meta:SetText(cardMeta)
-    ApplyCardBackdrop(card, result == self.selectedResult)
+    row:Show()
+    row.mob:SetText(MobName(location))
+    row.zone:SetText(location.zone or "Unknown")
+    row.levels:SetText(MobLevelText(location))
+    row.score:SetText(ScoreText(result))
+    row.score:SetTextColor(r, g, b)
+    ApplyRowBackdrop(row, false)
 end
 
-function UI:RefreshSelection()
-    for _, card in ipairs(self.cards) do
-        ApplyCardBackdrop(card, card.result == self.selectedResult)
-    end
-end
-
-function UI:SelectResult(result)
-    if not result then
-        return
-    end
-    self.selectedResult = result
-    self:RefreshSelection()
-    self:ShowDetail(result)
-end
-
-function UI:ShowDetail(result)
-    if not result then
-        self.detailTitle:SetText("No matching routes loaded")
-        self.detailMeta:SetText("Add route rows to Data\\GrindLocations.lua.")
-        self.detailStats:SetText("")
-        self.detailNotes:SetText("")
+function UI:ShowTooltip(owner, result)
+    if not GameTooltip or not result then
         return
     end
 
     local location = result.location
-    local r, g, b = StatusColor(result)
-    local metaParts = {}
-    local statParts = {}
-    local noteParts = {}
+    local detailParts = {}
+    local ratingParts = {}
 
-    AddText(metaParts, "Mob levels", location.mobLevelRange)
-    AddText(metaParts, "Spawn", location.spawnType)
-    AddText(metaParts, "Coords", location.coordinates)
-    AddText(noteParts, "Mobs", Join(location.mobTypes, "TBD"))
-    AddText(noteParts, "Tags", Join(location.tags, ""))
-    AddText(noteParts, "Risks", location.risks)
+    AddLine(detailParts, "Area", location.subzone or location.name)
+    AddLine(detailParts, "Coords", location.coordinates)
+    AddLine(detailParts, "Spawn", location.spawnType)
+    AddLine(detailParts, "Style", location.farmStyle)
+    AddLine(detailParts, "Faction", location.faction)
+    AddLine(ratingParts, "XP", location.xp)
+    AddLine(ratingParts, "Density", location.density)
+    AddLine(ratingParts, "Gold", location.gold)
+    AddLine(ratingParts, "Danger", location.danger)
+    AddLine(ratingParts, "Competition", location.competition)
 
-    if location.priorityScore then
-        table.insert(statParts, "Priority " .. location.priorityScore)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine(MobName(location), 1.0, 0.86, 0.45)
+    GameTooltip:AddLine((location.zone or "Unknown zone") .. " - mobs " .. MobLevelText(location), 0.82, 0.82, 0.76)
+    AddTooltipPair("Score", ScoreText(result))
+    AddTooltipPair("Target mob", tostring(result.targetMobLevel or "?") .. " (" .. tostring(result.status or "match") .. ")")
+    if location.priorityScore and location.priorityScore > 0 then
+        AddTooltipPair("Priority", location.priorityScore)
     end
-    table.insert(statParts, StatText("XP", location.xp))
-    table.insert(statParts, StatText("Density", location.density))
-    table.insert(statParts, StatText("Gold", location.gold))
-    table.insert(statParts, StatText("Danger", location.danger))
-
-    self.detailBar:SetColorTexture(r, g, b, 1)
-    self.detailTitle:SetText(location.name)
-    self.detailTitle:SetTextColor(1.0, 0.88, 0.44)
-    self.detailMeta:SetText(LevelText(location) .. " - " .. location.zone .. " / " .. (location.subzone or "Open world") .. " - " .. table.concat(metaParts, " - "))
-    self.detailStats:SetText(table.concat(statParts, "   "))
-    SetTextColorByQuality(self.detailStats, location.xp)
-    self.detailNotes:SetText(table.concat(noteParts, " - ") .. " Route: " .. RouteText(location) .. " " .. (location.notes or ""))
+    AddTooltipLine(table.concat(detailParts, "  "))
+    AddTooltipLine(table.concat(ratingParts, "  "), 0.72, 0.82, 0.70)
+    AddTooltipLine("Mobs: " .. Join(location.mobTypes, "TBD"), 0.88, 0.84, 0.75)
+    local loot = Join(location.loot, "")
+    local professions = Join(location.professions, "")
+    if loot ~= "" then
+        AddTooltipLine("Drops: " .. loot, 0.78, 0.82, 0.72)
+    end
+    if professions ~= "" then
+        AddTooltipLine("Professions: " .. professions, 0.72, 0.80, 0.88)
+    end
+    AddTooltipLine("Risks: " .. (location.risks or ""), 0.9, 0.70, 0.62)
+    AddTooltipLine(RouteText(location), 0.82, 0.78, 0.70)
+    AddTooltipLine(location.notes, 0.76, 0.74, 0.68)
+    GameTooltip:Show()
 end
 
 function UI:Show()
@@ -568,8 +525,8 @@ function UI:UpdateLockText()
         return
     end
     if GrindLlama.db.ui.locked then
-        self.lockButton:SetText("Unlock")
+        self.lockButton:SetText("U")
     else
-        self.lockButton:SetText("Lock")
+        self.lockButton:SetText("L")
     end
 end
