@@ -1,0 +1,10 @@
+## Interface: 11507
+## Title: GrindLlama
+## Notes: Auto-suggests WoW Classic grinding spots by level and faction.
+## Author: 03h043-glitch
+## Version: 0.1.0
+## SavedVariables: GrindLlamaDB
+
+Data\GrindLocations.lua
+Core.lua
+UI.lua
