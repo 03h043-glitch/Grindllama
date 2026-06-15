@@ -9,7 +9,7 @@ GrindLlama is a World of Warcraft Classic addon that suggests open-world grindin
 - Displays the top recommendation plus a ranked shortlist.
 - Includes a minimap toggle button and slash commands.
 - Stores window position, lock state, visibility, and level search range in saved variables.
-- Ships with seed Classic route data so the addon is usable before the spreadsheet import is added.
+- Ships with generated Classic route data from `vanilla_wow_classic_grinding_locations_expanded_addon_db.xlsx`.
 
 ## Installation
 
@@ -32,14 +32,17 @@ If your client marks the addon as out of date, enable "Load out of date AddOns" 
 
 WoW addons cannot read `.xlsx` or Google Sheets directly at runtime. The spreadsheet needs to be exported and converted into Lua data in `Data/GrindLocations.lua`.
 
-The planned workflow is:
+Current workflow:
 
-1. Maintain route rows in the spreadsheet using the schema in `docs/spreadsheet-schema.md`.
-2. Export the sheet as CSV when route data changes.
-3. Convert CSV rows into `GrindLlama_Locations` Lua entries.
-4. Package the updated addon folder.
+1. Maintain route rows in the workbook's `Addon_DB` sheet.
+2. Commit the updated workbook to the repo.
+3. Regenerate addon data:
 
-The sample data in `Data/GrindLocations.lua` follows the intended structure and can be replaced by generated spreadsheet output later.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Convert-GrindLocationsFromXlsx.ps1 -WorkbookPath .\vanilla_wow_classic_grinding_locations_expanded_addon_db.xlsx -SheetName Addon_DB -OutputPath .\Data\GrindLocations.lua
+```
+
+The generated `Data/GrindLocations.lua` currently contains 178 routes from the workbook. It embeds the compact fields the addon needs at runtime; the workbook remains the full source for audit/source notes and richer spreadsheet-only columns.
 
 ## Addon Folder Layout
 
@@ -47,5 +50,6 @@ The sample data in `Data/GrindLocations.lua` follows the intended structure and 
 - `Data/GrindLocations.lua` contains route data.
 - `Core.lua` handles player detection, scoring, slash commands, and saved variables.
 - `UI.lua` builds the in-game panel and minimap toggle.
-- `docs/spreadsheet-schema.md` documents the spreadsheet columns expected later.
+- `tools/Convert-GrindLocationsFromXlsx.ps1` converts the workbook `Addon_DB` sheet into Lua data.
+- `docs/spreadsheet-schema.md` documents the workbook columns used by the converter.
 - `templates/grind_locations_template.csv` gives a starter CSV format.

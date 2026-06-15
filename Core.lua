@@ -152,6 +152,9 @@ function GrindLlama:ScoreLocation(location, level, faction)
     score = score + ((location.xp or 3) * 5)
     score = score + ((location.density or 3) * 4)
     score = score + ((location.gold or 1) * 2)
+    if location.priorityScore then
+        score = score + (math.min(location.priorityScore, 100) / 4)
+    end
     score = score - ((location.danger or 3) * 3)
     score = score - ((location.travel or 3) * 2)
     score = score - (math.max((location.competition or 3) - 3, 0) * 2)

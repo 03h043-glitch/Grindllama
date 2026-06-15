@@ -1,38 +1,43 @@
 # GrindLlama Spreadsheet Schema
 
-Use one row per grinding route. Keep column names stable so the sheet can be converted into `Data/GrindLocations.lua` later.
+Use one row per grinding route. Keep column names stable so `tools/Convert-GrindLocationsFromXlsx.ps1` can convert the workbook's `Addon_DB` sheet into `Data/GrindLocations.lua`.
+
+The workbook is the full source of truth. The generated Lua file intentionally embeds a compact runtime subset: route ID, level range, faction fit, zone, area, mob group, mob level range, derived ratings, and priority score. Source/audit columns and richer notes stay in the workbook and can still influence derived ratings during conversion.
 
 ## Required Columns
 
 | Column | Example | Notes |
 | --- | --- | --- |
-| `id` | `tanaris-wastewander-40-45` | Stable lowercase identifier. Use letters, numbers, and hyphens. |
-| `name` | `Wastewander Bandit Camps` | Display name shown in the addon. |
-| `zone` | `Tanaris` | In-game zone name. |
-| `subzone` | `Waterspring Field` | Local area or route label. |
-| `mapID` | `1446` | Optional but useful for future map features. |
-| `coordinates` | `62, 37` | Main route start or center point. |
-| `minLevel` | `40` | Lowest recommended player level. |
-| `maxLevel` | `45` | Highest useful player level. |
-| `idealMin` | `42` | Start of the strongest level range. |
-| `idealMax` | `44` | End of the strongest level range. |
-| `faction` | `Both` | Use `Alliance`, `Horde`, or `Both`. |
-| `mobTypes` | `Wastewander Bandit;Wastewander Thief` | Semicolon-separated mob names. |
-| `density` | `5` | 1 low to 5 high. |
-| `danger` | `4` | 1 safe to 5 dangerous. |
-| `travel` | `3` | 1 easy to reach to 5 remote. |
-| `xp` | `5` | 1 weak to 5 excellent. |
-| `gold` | `4` | 1 weak to 5 excellent. |
-| `competition` | `4` | 1 quiet to 5 crowded. |
-| `loot` | `Silk Cloth;Mageweave Cloth;Coins` | Semicolon-separated notable loot. |
-| `professions` | `First Aid` | Semicolon-separated profession value. |
-| `route` | `Clear one camp at a time...` | Short route instructions. |
-| `notes` | `High-value humanoid grinding...` | Short practical note. |
+| `GrindID` | `VG145` | Stable route identifier from the workbook. |
+| `MinLevel` | `40` | Lowest recommended player level. |
+| `MaxLevel` | `45` | Highest useful player level. |
+| `FactionFit` | `Both factions` | Human-readable faction fit. |
+| `AllianceViable` | `Y` | `Y` when Alliance characters can use the route. |
+| `HordeViable` | `Y` | `Y` when Horde characters can use the route. |
+| `Zone` | `Tanaris` | In-game zone name. |
+| `Area` | `Waterspring Field` | Local area or route label. |
+| `ApproxCoords` | `62, 37` | Optional route start or center point. |
+| `MobGroup` | `Wastewander Bandits, Wastewander Thieves` | Comma/semicolon-separated mob groups. |
+| `MobLevelRange` | `40-45` | Display text for mob levels. |
+| `SpawnType` | `Dense humanoid camp` | Display text for spawn behavior. |
+| `SpawnWeight` | `4` | Source weighting used when priority score is absent. |
+| `FarmStyle` | `Single-target` | Short route style shown in notes. |
+| `Density` | `High` | Numeric or text density; converted to a 1-5 rating. |
+| `DropsMentioned` | `Silk Cloth, Mageweave Cloth, Coins` | Comma/semicolon-separated notable loot. |
+| `ProfessionSynergy` | `First Aid, Tailoring` | Comma/semicolon-separated profession value. |
+| `Risks` | `Stealth mobs and caster chains` | Used for notes and a derived danger rating. |
+| `Notes` | `High-value humanoid grinding...` | Short practical note. |
+| `PriorityScore` | `87` | Spreadsheet priority; affects addon ranking. |
+| `SourceKey` | `Wowhead_Leveling` | Short source label retained in the workbook for audit. |
+| `SourceURL` | `https://...` | Source URL retained in the workbook for audit. |
+| `Confidence` | `Medium` | Data confidence label retained in the workbook for audit. |
+| `VanillaOnly` | `Y` | `Y` for routes valid for Vanilla/Classic Era. |
+| `Tags` | `CLOTH, SKINNING` | Comma/semicolon-separated tags. |
 
 ## Scoring Notes
 
-The addon gives the most weight to level fit, then XP, density, danger, travel, gold, competition, faction fit, and current-zone match. Keep rating scales consistent across rows so the ranking feels predictable.
+The addon gives the most weight to level fit, then XP, density, danger, travel, gold, competition, spreadsheet priority, faction fit, and current-zone match. Keep rating scales consistent across rows so the ranking feels predictable.
 
 ## Runtime Constraint
 
-The game client loads Lua files listed in `GrindLlama.toc`. It will not load a spreadsheet file directly, so the final import step must produce valid Lua table entries.
+The game client loads Lua files listed in `GrindLlama.toc`. It will not load a spreadsheet file directly, so the final import step must produce valid Lua route data.

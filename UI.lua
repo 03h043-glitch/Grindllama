@@ -86,8 +86,37 @@ local function Join(values, fallback)
     return table.concat(values, ", ")
 end
 
+local function AddText(parts, label, value)
+    if value and value ~= "" then
+        table.insert(parts, label .. ": " .. value)
+    end
+end
+
 local function LevelText(location)
     return "Level " .. tostring(location.minLevel or "?") .. "-" .. tostring(location.maxLevel or "?")
+end
+
+local function RouteText(location)
+    if location.route and location.route ~= "" then
+        return location.route
+    end
+
+    local parts = {}
+    if location.farmStyle and location.farmStyle ~= "" then
+        table.insert(parts, location.farmStyle .. " route.")
+    end
+    if location.subzone and location.zone then
+        table.insert(parts, "Farm around " .. location.subzone .. " in " .. location.zone .. ".")
+    end
+    if location.mobTypes and #location.mobTypes > 0 then
+        table.insert(parts, "Focus mobs: " .. Join(location.mobTypes, "TBD") .. ".")
+    end
+
+    if #parts == 0 then
+        return "Route details TBD."
+    end
+
+    return table.concat(parts, " ")
 end
 
 local function StatText(label, value)
@@ -404,9 +433,19 @@ function UI:RefreshCard(card, result)
     card:Show()
     card.bar:SetColorTexture(r, g, b, 1)
     card.title:SetText(location.name)
-    card.score:SetText(result.status)
+    if location.priorityScore then
+        card.score:SetText(result.status .. " " .. location.priorityScore)
+    else
+        card.score:SetText(result.status)
+    end
     card.score:SetTextColor(r, g, b)
-    card.meta:SetText(LevelText(location) .. " - " .. location.zone .. " - " .. (location.coordinates or "coords TBD"))
+    local cardMeta = LevelText(location) .. " - " .. location.zone
+    if location.spawnType then
+        cardMeta = cardMeta .. " - " .. location.spawnType
+    elseif location.coordinates then
+        cardMeta = cardMeta .. " - " .. location.coordinates
+    end
+    card.meta:SetText(cardMeta)
     ApplyCardBackdrop(card, result == self.selectedResult)
 end
 
@@ -436,18 +475,32 @@ function UI:ShowDetail(result)
 
     local location = result.location
     local r, g, b = StatusColor(result)
+    local metaParts = {}
+    local statParts = {}
+    local noteParts = {}
+
+    AddText(metaParts, "Mob levels", location.mobLevelRange)
+    AddText(metaParts, "Spawn", location.spawnType)
+    AddText(metaParts, "Coords", location.coordinates)
+    AddText(noteParts, "Mobs", Join(location.mobTypes, "TBD"))
+    AddText(noteParts, "Tags", Join(location.tags, ""))
+    AddText(noteParts, "Risks", location.risks)
+
+    if location.priorityScore then
+        table.insert(statParts, "Priority " .. location.priorityScore)
+    end
+    table.insert(statParts, StatText("XP", location.xp))
+    table.insert(statParts, StatText("Density", location.density))
+    table.insert(statParts, StatText("Gold", location.gold))
+    table.insert(statParts, StatText("Danger", location.danger))
+
     self.detailBar:SetColorTexture(r, g, b, 1)
     self.detailTitle:SetText(location.name)
     self.detailTitle:SetTextColor(1.0, 0.88, 0.44)
-    self.detailMeta:SetText(LevelText(location) .. " - " .. location.zone .. " / " .. (location.subzone or "Open world") .. " - " .. (location.coordinates or "coords TBD"))
-    self.detailStats:SetText(
-        StatText("XP", location.xp) .. "   " ..
-        StatText("Density", location.density) .. "   " ..
-        StatText("Gold", location.gold) .. "   " ..
-        "Mobs: " .. Join(location.mobTypes, "TBD")
-    )
+    self.detailMeta:SetText(LevelText(location) .. " - " .. location.zone .. " / " .. (location.subzone or "Open world") .. " - " .. table.concat(metaParts, " - "))
+    self.detailStats:SetText(table.concat(statParts, "   "))
     SetTextColorByQuality(self.detailStats, location.xp)
-    self.detailNotes:SetText((location.notes or "") .. " Route: " .. (location.route or "TBD"))
+    self.detailNotes:SetText(table.concat(noteParts, " - ") .. " Route: " .. RouteText(location) .. " " .. (location.notes or ""))
 end
 
 function UI:Show()
