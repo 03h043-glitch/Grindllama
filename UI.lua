@@ -158,6 +158,7 @@ end
 
 function UI:CreateMainFrame()
     local frame = NewPanel("GrindLlamaFrame", UIParent)
+    self.frame = frame
     frame:SetSize(382, 306)
     frame:SetFrameStrata("DIALOG")
     frame:SetClampedToScreen(true)
@@ -279,14 +280,14 @@ function UI:CreateMainFrame()
         self.rows[index] = self:CreateRow(index)
     end
 
-    self.frame = frame
     self:UpdateLockText()
 end
 
 function UI:CreateRow(index)
-    local row = CreateFrame("Button", nil, self.frame, BACKDROP_TEMPLATE)
+    local parent = self.frame
+    local row = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
     row:SetSize(358, 24)
-    row:SetPoint("TOPLEFT", 12, -96 - ((index - 1) * 25))
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, -96 - ((index - 1) * 25))
     row:RegisterForClicks("LeftButtonUp")
     ApplyRowBackdrop(row, false)
 
